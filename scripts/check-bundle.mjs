@@ -57,8 +57,9 @@ for (const { name, re } of FORBIDDEN) {
 }
 
 // One copy of react-query, identified by an error string it always ships.
-const reactQueryCopies = (code.match(/No QueryClient set, use QueryClientProvider to set one/g) ?? [])
-  .length;
+const reactQueryCopies = (
+  code.match(/No QueryClient set, use QueryClientProvider to set one/g) ?? []
+).length;
 if (reactQueryCopies !== 1) {
   failures.push(
     `expected exactly 1 copy of @tanstack/react-query, found ${reactQueryCopies}. ` +

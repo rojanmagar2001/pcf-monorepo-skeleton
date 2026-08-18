@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Catches a duplicated react / react-dom / react-query before it can reach
+      # a bundle, where the symptom is far less obvious.
+      - name: Check peer dependency duplication
+        run: pnpm run check:single-react-query
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format
+        run: pnpm run format:check
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      # `src/generated/` is committed so the build never depends on codegen.
+      # Regenerate here and fail if the committed output has drifted from
+      # openapi.json.
+      - name: Verify generated client is up to date
+        run: pnpm run verify:generate
+
+      - name: Test
+        run: pnpm run test
+
+      # Builds every package in dependency order, then asserts the control
+      # bundle satisfies the PCF host constraints.
+      - name: Build
+        run: pnpm run build
+
+      - name: Build Storybook
+        run: pnpm --filter @document-intake/ui run build-storybook
+
+      - name: Upload control bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentintake-control
+          path: pcf/documentintake/out/controls/documentintake/
