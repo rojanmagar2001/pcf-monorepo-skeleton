@@ -1,0 +1,258 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Document Intake API",
+    "version": "1.0.0",
+    "description": "Intake queue for documents captured by the Document Intake PCF control."
+  },
+  "servers": [{ "url": "/api/v1" }],
+  "tags": [{ "name": "documents", "description": "Document intake queue" }],
+  "paths": {
+    "/documents": {
+      "get": {
+        "tags": ["documents"],
+        "operationId": "listDocuments",
+        "summary": "List intake documents with paging, sorting and filtering",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int32", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["fileName", "status", "submittedAt", "updatedAt", "sizeBytes"],
+              "default": "submittedAt"
+            }
+          },
+          {
+            "name": "sortDir",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by one or more statuses.",
+            "schema": {
+              "type": "array",
+              "items": { "$ref": "#/components/schemas/DocumentStatus" }
+            },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive match against file name and submitter.",
+            "schema": { "type": "string", "maxLength": 200 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of documents.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DocumentPage" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/documents/{documentId}": {
+      "get": {
+        "tags": ["documents"],
+        "operationId": "getDocument",
+        "summary": "Get a single document by id",
+        "parameters": [{ "$ref": "#/components/parameters/DocumentId" }],
+        "responses": {
+          "200": {
+            "description": "The document.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Document" } }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/documents/{documentId}/status": {
+      "patch": {
+        "tags": ["documents"],
+        "operationId": "updateDocumentStatus",
+        "summary": "Update the intake status of a document",
+        "parameters": [{ "$ref": "#/components/parameters/DocumentId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDocumentStatusRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated document.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Document" } }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Problem" },
+          "409": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/documents/{documentId}/metadata": {
+      "post": {
+        "tags": ["documents"],
+        "operationId": "uploadDocumentMetadata",
+        "summary": "Attach extracted metadata to a document",
+        "parameters": [{ "$ref": "#/components/parameters/DocumentId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DocumentMetadataUpload" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Metadata stored.",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DocumentMetadata" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "DocumentId": {
+        "name": "documentId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "Error response.",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Problem" } }
+        }
+      }
+    },
+    "schemas": {
+      "DocumentStatus": {
+        "type": "string",
+        "description": "Lifecycle state of a document in the intake queue.",
+        "enum": ["pending", "processing", "needsReview", "approved", "rejected"]
+      },
+      "Document": {
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "status",
+          "submittedBy",
+          "submittedAt",
+          "updatedAt",
+          "tags"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "fileName": { "type": "string", "minLength": 1, "maxLength": 260 },
+          "contentType": { "type": "string" },
+          "sizeBytes": { "type": "integer", "format": "int64", "minimum": 0 },
+          "status": { "$ref": "#/components/schemas/DocumentStatus" },
+          "submittedBy": { "type": "string" },
+          "submittedAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "pageCount": { "type": "integer", "format": "int32", "minimum": 0, "nullable": true },
+          "confidence": { "type": "number", "format": "double", "minimum": 0, "maximum": 1, "nullable": true },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "DocumentPage": {
+        "type": "object",
+        "required": ["items", "page", "pageSize", "total", "totalPages"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
+          "page": { "type": "integer", "format": "int32", "minimum": 1 },
+          "pageSize": { "type": "integer", "format": "int32", "minimum": 1 },
+          "total": { "type": "integer", "format": "int32", "minimum": 0 },
+          "totalPages": { "type": "integer", "format": "int32", "minimum": 0 }
+        }
+      },
+      "UpdateDocumentStatusRequest": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/DocumentStatus" },
+          "note": { "type": "string", "maxLength": 1000 }
+        }
+      },
+      "DocumentMetadataUpload": {
+        "type": "object",
+        "required": ["fields"],
+        "properties": {
+          "source": { "type": "string", "enum": ["ocr", "manual", "import"], "default": "manual" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "fields": {
+            "type": "object",
+            "description": "Flat key/value pairs extracted from the document.",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      },
+      "DocumentMetadata": {
+        "type": "object",
+        "required": ["documentId", "fields", "capturedAt"],
+        "properties": {
+          "documentId": { "type": "string", "format": "uuid" },
+          "source": { "type": "string", "enum": ["ocr", "manual", "import"] },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "fields": { "type": "object", "additionalProperties": { "type": "string" } },
+          "capturedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "required": ["title", "status"],
+        "properties": {
+          "title": { "type": "string" },
+          "status": { "type": "integer", "format": "int32" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Jest runs CommonJS, which rules out `moduleResolution: "bundler"`. The
+    // `paths` below stand in for the workspace packages' `exports` subpaths so
+    // the type checker still resolves them under classic Node resolution.
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "paths": {
+      "@document-intake/ui": ["../../packages/ui/dist/index.d.ts"],
+      "@document-intake/ui/styles": ["../../packages/ui/dist/styles.d.ts"],
+      "@document-intake/api-client": ["../../packages/api-client/dist/index.d.ts"],
+      "@document-intake/api-client/testing": ["../../packages/api-client/dist/testing/index.d.ts"]
+    },
+    "types": ["powerapps-component-framework", "jest", "node"]
+  }
+}

@@ -1,0 +1,46 @@
+/*
+ * Compiled out of band by `scripts/build-styles.mjs` into a single scoped
+ * stylesheet, never through pcf-scripts' pipeline. Nothing in the library
+ * source imports this file, so no side-effect CSS import ever reaches the
+ * control bundle.
+ *
+ * Preflight is disabled, so the few resets the components genuinely rely on are
+ * declared here - explicitly scoped under `.di-root`, and never as a bare `*`
+ * selector that would leak into the host app.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  .di-root {
+    box-sizing: border-box;
+    color: #0f172a;
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* Scoped replacement for preflight's border-box rule. */
+  .di-root *,
+  .di-root *::before,
+  .di-root *::after {
+    box-sizing: border-box;
+  }
+
+  /* Preflight normally zeroes these; do it inside our scope only. */
+  .di-root table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  .di-root button {
+    background: none;
+    border: 0 solid transparent;
+    color: inherit;
+    font: inherit;
+    margin: 0;
+    padding: 0;
+  }
+}

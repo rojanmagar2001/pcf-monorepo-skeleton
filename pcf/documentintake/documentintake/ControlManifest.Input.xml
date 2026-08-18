@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest>
+  <!--
+    control-type="standard", NOT "virtual"/"react".
+
+    A virtual control declares platform-library React/Fluent, which pins the
+    control to the host's React 16.14. This control bundles its own React 18,
+    so it must declare no platform-library at all.
+  -->
+  <control
+    namespace="DocumentIntake"
+    constructor="DocumentIntake"
+    version="0.1.0"
+    display-name-key="DocumentIntake_Display_Key"
+    description-key="DocumentIntake_Desc_Key"
+    control-type="standard">
+
+    <!-- The control calls an external document-intake API through fetch. -->
+    <external-service-usage enabled="true">
+      <domain>https://api.contoso.com</domain>
+    </external-service-usage>
+
+    <!-- ============================ inputs ============================ -->
+
+    <property
+      name="baseUrl"
+      display-name-key="BaseUrl_Display_Key"
+      description-key="BaseUrl_Desc_Key"
+      of-type="SingleLine.Text"
+      usage="input"
+      required="true" />
+
+    <property
+      name="pageSize"
+      display-name-key="PageSize_Display_Key"
+      description-key="PageSize_Desc_Key"
+      of-type="Whole.None"
+      usage="input"
+      required="false"
+      default-value="25" />
+
+    <!-- =========================== outputs ============================ -->
+
+    <property
+      name="selectedDocumentId"
+      display-name-key="SelectedDocumentId_Display_Key"
+      description-key="SelectedDocumentId_Desc_Key"
+      of-type="SingleLine.Text"
+      usage="output"
+      required="false" />
+
+    <property
+      name="visibleDocumentCount"
+      display-name-key="VisibleDocumentCount_Display_Key"
+      description-key="VisibleDocumentCount_Desc_Key"
+      of-type="Whole.None"
+      usage="output"
+      required="false" />
+
+    <property
+      name="lastError"
+      display-name-key="LastError_Display_Key"
+      description-key="LastError_Desc_Key"
+      of-type="SingleLine.Text"
+      usage="output"
+      required="false" />
+
+    <!-- =========================== dataset ============================ -->
+
+    <data-set
+      name="documents"
+      display-name-key="Documents_Display_Key"
+      description-key="Documents_Desc_Key">
+      <property-set
+        name="fileName"
+        display-name-key="FileName_Display_Key"
+        of-type="SingleLine.Text"
+        usage="bound"
+        required="false" />
+      <property-set
+        name="documentStatus"
+        display-name-key="DocumentStatus_Display_Key"
+        of-type="SingleLine.Text"
+        usage="bound"
+        required="false" />
+      <property-set
+        name="submittedOn"
+        display-name-key="SubmittedOn_Display_Key"
+        of-type="DateAndTime.DateAndTime"
+        usage="bound"
+        required="false" />
+    </data-set>
+
+    <resources>
+      <code path="index.ts" order="1" />
+      <!--
+        No <css> resource: the Tailwind stylesheet is compiled out of band into
+        a string and injected at runtime, which keeps postcss and the css
+        loaders entirely out of the pcf-scripts pipeline.
+      -->
+    </resources>
+
+    <feature-usage>
+      <uses-feature name="WebAPI" required="true" />
+      <uses-feature name="Utility" required="false" />
+    </feature-usage>
+
+  </control>
+</manifest>

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+obj/
+bin/
+coverage/
+storybook-static/
+*.tsbuildinfo
+.turbo/
+.DS_Store
+
+# pcf-scripts writes these on every build
+pcf/**/generated/
+pcf/*/.pcf/
+
+# tailwind emits the compiled stylesheet into dist/ at build time
+packages/ui/dist/

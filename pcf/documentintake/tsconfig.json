@@ -1,0 +1,26 @@
+{
+  "extends": "pcf-scripts/tsconfig_base.json",
+  "compilerOptions": {
+    // pcf-scripts' base targets the classic JSX runtime and Node10 module
+    // resolution. Both are overridden here:
+    //   - `react-jsx` because this is a React 18 control
+    //   - `bundler` so the workspace packages' `exports` subpaths (notably
+    //     `@document-intake/ui/styles`) resolve for the type checker, the way
+    //     webpack 5 already resolves them at build time.
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2017",
+    "lib": ["ES2017", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": false,
+    "types": ["powerapps-component-framework", "jest", "node"]
+  },
+  "include": ["documentintake", "test"],
+  "exclude": ["node_modules", "out", "obj", "bin"]
+}

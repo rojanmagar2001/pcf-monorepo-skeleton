@@ -1,0 +1,4 @@
+# Generated but committed: reviewable, yet not something to diff by hand.
+packages/api-client/src/generated/** linguist-generated=true
+apps/document-intake-web/public/mockServiceWorker.js linguist-vendored=true
+packages/ui/.storybook/public/mockServiceWorker.js linguist-vendored=true
