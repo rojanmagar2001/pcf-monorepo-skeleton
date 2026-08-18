@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "//": "Globbed explicitly: tsc skips dot-directories when it expands a bare directory name.",
+  "include": [".storybook/**/*.ts", ".storybook/**/*.tsx"]
+}

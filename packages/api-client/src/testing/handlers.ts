@@ -48,6 +48,17 @@ function routeOf(openApiPath: string): string {
   return toMswPath(openApiPath);
 }
 
+/**
+ * Origin the mock backend answers on when no `baseUrl` is given.
+ *
+ * Exported rather than left as an inline default because every consumer that
+ * overrides a handler has to name the same origin: a story adding a one-off
+ * `http.get(...)`, a test pinning an error response, Storybook's preview
+ * pointing `ApiProvider` at it. One constant here beats the same literal
+ * retyped in each of them, where a typo means a silently unintercepted request.
+ */
+export const DEFAULT_MOCK_BASE_URL = 'http://localhost/api/v1';
+
 export interface HandlerOptions {
   /**
    * API root the generated client will be pointed at. Must match the
@@ -71,7 +82,7 @@ function problem(status: number, title: string, detail?: string) {
 }
 
 export function createDocumentIntakeMocks(options: HandlerOptions = {}): DocumentIntakeMocks {
-  const baseUrl = options.baseUrl ?? 'http://localhost/api/v1';
+  const baseUrl = options.baseUrl ?? DEFAULT_MOCK_BASE_URL;
   const db = options.db ?? new DocumentIntakeDb();
 
   const handlers: RequestHandler[] = [

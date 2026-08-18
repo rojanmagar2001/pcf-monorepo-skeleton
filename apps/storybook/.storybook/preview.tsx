@@ -1,14 +1,29 @@
 import { ApiProvider, createQueryClient, disposeQueryClient } from '@document-intake/api-client';
-import type { Decorator, Preview } from '@storybook/react-vite';
+import { UiRoot } from '@document-intake/ui';
+import { type Decorator, definePreview } from '@storybook/react-vite';
 import addonMsw from 'msw-storybook-addon';
+// Type-only: augments `StoryContext` with `msw`, the running SetupWorker that
+// `addonMsw()` hands to every `beforeEach`. Erased at compile time - the
+// package's `./types` subpath is declarations only and has no runtime module.
+import type {} from 'msw-storybook-addon/types';
 import { useEffect, useState } from 'react';
-import { UiRoot } from '../src/UiRoot';
 import { STORYBOOK_BASE_URL, storyMocks } from './mocks';
 // The only CSS import in the workspace, and it lives in Storybook's own config
 // rather than in library source - nothing here reaches the control bundle.
 // It goes through the normal postcss pipeline against the shared
 // `tailwind.config.ts`, so Storybook renders what the control ships.
-import '../src/styles/tailwind.css';
+import '@document-intake/ui/tailwind.css';
+
+/** Story-level knobs this preview understands, declared via `parameters`. */
+interface SlotParameters {
+  slotWidth?: number | string;
+  slotHeight?: number | string;
+  /**
+   * Set `false` by a story whose subject mounts its own `UiRoot` - the web
+   * shell does - so the preview does not nest a second scope around it.
+   */
+  uiRoot?: boolean;
+}
 
 /**
  * Mimics a PCF field slot: a model-driven form hands a control a fixed, usually
@@ -16,10 +31,7 @@ import '../src/styles/tailwind.css';
  * sprawl across the viewport. Resizable, to make overflow behaviour obvious.
  */
 const withFieldSlot: Decorator = (Story, context) => {
-  const { slotWidth = 960, slotHeight = 520 } = context.parameters as {
-    slotWidth?: number | string;
-    slotHeight?: number | string;
-  };
+  const { slotWidth = 960, slotHeight = 520, uiRoot = true } = context.parameters as SlotParameters;
   return (
     <div
       data-pcf-field-slot=""
@@ -35,9 +47,13 @@ const withFieldSlot: Decorator = (Story, context) => {
         boxSizing: 'border-box',
       }}
     >
-      <UiRoot>
+      {uiRoot ? (
+        <UiRoot>
+          <Story />
+        </UiRoot>
+      ) : (
         <Story />
-      </UiRoot>
+      )}
     </div>
   );
 };
@@ -58,16 +74,29 @@ const withFreshQueryClient: Decorator = (Story) => {
   );
 };
 
-const preview: Preview = {
-  // MSW is wired in as a preview addon; stories declare handlers through the
-  // `msw` parameter.
+/**
+ * `definePreview` rather than a plain `Preview` object: preview *addons* are
+ * only accepted through it, and MSW is registered as one.
+ *
+ * The mock backend is installed in `beforeEach` rather than declared as a
+ * `parameters.msw` block. As of msw-storybook-addon 3 that parameter is only
+ * read by the legacy `msw-storybook-addon/csf3` loader; the addon proper starts
+ * a worker with no handlers and exposes it as `context.msw`, and resets it
+ * after every story - which is why these have to be re-applied per story rather
+ * than registered once.
+ *
+ * A story that needs different behaviour adds its own `beforeEach` and calls
+ * `msw.use()`. Story annotations run after the preview's, and `use()` prepends,
+ * so a story's handler shadows the default without having to restate the rest.
+ */
+export default definePreview({
   addons: [addonMsw()],
   decorators: [withFreshQueryClient, withFieldSlot],
+  beforeEach: ({ msw }) => {
+    msw.use(...storyMocks.handlers);
+  },
   parameters: {
     layout: 'centered',
     controls: { expanded: true },
-    msw: { handlers: storyMocks.handlers },
   },
-};
-
-export default preview;
+});
