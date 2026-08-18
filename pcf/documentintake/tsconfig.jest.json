@@ -10,7 +10,8 @@
       "@document-intake/ui": ["../../packages/ui/dist/index.d.ts"],
       "@document-intake/ui/styles": ["../../packages/ui/dist/styles.d.ts"],
       "@document-intake/api-client": ["../../packages/api-client/dist/index.d.ts"],
-      "@document-intake/api-client/testing": ["../../packages/api-client/dist/testing/index.d.ts"]
+      "@document-intake/api-client/testing": ["../../packages/api-client/dist/testing/index.d.ts"],
+      "@document-intake/web": ["../../apps/document-intake-web/dist/index.d.ts"]
     },
     "types": ["powerapps-component-framework", "jest", "node"]
   }

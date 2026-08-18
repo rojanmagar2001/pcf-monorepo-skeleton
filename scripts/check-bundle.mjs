@@ -24,7 +24,12 @@ let code;
 try {
   code = readFileSync(BUNDLE, 'utf8');
 } catch {
-  console.error(`check-bundle: no bundle at ${BUNDLE}. Run \`pnpm build\` first.`);
+  console.error(
+    `check-bundle: no bundle at ${BUNDLE}.\n` +
+      'Either the build has not run, or it ran and failed: pcf-scripts exits 0 even ' +
+      'when webpack fails to compile, so the control build clears out/ first and a ' +
+      'missing bundle here is how that failure surfaces. Check the build log above.',
+  );
   process.exit(1);
 }
 
@@ -47,6 +52,10 @@ const FORBIDDEN = [
   { name: 'axios', re: /\baxios\b/g },
   { name: 'web worker', re: /new\s+Worker\s*\(/g },
   { name: 'top-level await', re: /^await\s/gm },
+  // `@document-intake/web` is both the dev harness and the control's shell, so
+  // MSW is one bad import away from shipping. In the control it would install a
+  // service worker over the host's own requests.
+  { name: 'MSW mock transport', re: /mockServiceWorker|\[MSW\]/g },
 ];
 
 const failures = [];

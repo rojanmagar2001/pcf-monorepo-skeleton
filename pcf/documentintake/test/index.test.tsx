@@ -55,6 +55,24 @@ describe('DocumentIntake control lifecycle', () => {
     await act(async () => control.destroy());
   });
 
+  it('renders the shared @document-intake/web shell, not a control-only tree', async () => {
+    const mock = createMockContext();
+    const control = new DocumentIntake();
+    await mount(control, mock);
+
+    // The chrome the harness shows is the chrome the control shows: one shell,
+    // two hosts. If the control ever forked its own tree again, this fails.
+    expect(mock.container.querySelector('section[aria-label="Filters"]')).not.toBeNull();
+    expect(mock.container.querySelector('input[type="search"]')).not.toBeNull();
+    expect(mock.container.textContent).toContain('Document intake');
+
+    // The harness-only strapline is passed in by `main.tsx`, never by the
+    // control - MSW must not be described to a user inside a real host.
+    expect(mock.container.textContent).not.toContain('Dataverse environment required');
+
+    await act(async () => control.destroy());
+  });
+
   it('injects the scoped stylesheet exactly once in init()', async () => {
     const mock = createMockContext();
     const control = new DocumentIntake();

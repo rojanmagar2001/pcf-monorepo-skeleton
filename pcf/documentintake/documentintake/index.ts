@@ -7,16 +7,22 @@ import {
   createWebApiFetch,
   disposeQueryClient,
 } from '@document-intake/api-client';
+import { App, type IntakeShellState } from '@document-intake/web';
 import type { QueryClient } from '@tanstack/react-query';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { DocumentIntakeApp, type DocumentIntakeAppState } from './DocumentIntakeApp';
 import type { IInputs, IOutputs } from './generated/ManifestTypes';
 import { readControlInputs } from './inputs';
 import { acquireStyles, releaseStyles } from './styles';
 
 /**
  * Document Intake - a standard (non-virtual) PCF control.
+ *
+ * The React tree it renders is `App` from `@document-intake/web` - the same
+ * shell the Vite harness mounts. The control supplies what only a host can:
+ * the api config (routed through `ComponentFramework.WebApi` rather than the
+ * network), the QueryClient, the page size from the dataset binding, and the
+ * upward state reporting that becomes `notifyOutputChanged`.
  *
  * Every mutable thing it owns is per instance: the React root, the QueryClient,
  * and the api-client registration. The host may place several of these on one
@@ -37,7 +43,7 @@ export class DocumentIntake implements ComponentFramework.StandardControl<IInput
   private configurationError: string | null = null;
   private destroyed = false;
 
-  private state: DocumentIntakeAppState = {
+  private state: IntakeShellState = {
     selectedDocumentId: null,
     visibleDocumentCount: 0,
     lastError: null,
@@ -119,7 +125,7 @@ export class DocumentIntake implements ComponentFramework.StandardControl<IInput
     releaseStyles();
   }
 
-  private handleStateChange = (next: DocumentIntakeAppState): void => {
+  private handleStateChange = (next: IntakeShellState): void => {
     this.state = next;
     this.notifyOutputChanged();
   };
@@ -133,9 +139,9 @@ export class DocumentIntake implements ComponentFramework.StandardControl<IInput
     const pageSize = dataset?.paging?.pageSize ?? this.initialPageSize;
 
     this.root.render(
-      createElement(DocumentIntakeApp, {
+      createElement(App, {
         config: this.apiConfig ?? { baseUrl: '' },
-        queryClient: this.queryClient as QueryClient,
+        client: this.queryClient as QueryClient,
         initialPageSize: pageSize,
         onStateChange: this.handleStateChange,
         configurationError: this.configurationError,

@@ -10,6 +10,7 @@ const { resolve } = require('node:path');
 
 const ui = resolve(__dirname, '../../packages/ui/dist');
 const apiClient = resolve(__dirname, '../../packages/api-client/dist');
+const web = resolve(__dirname, '../../apps/document-intake-web/dist');
 
 module.exports = {
   testEnvironment: '<rootDir>/test/jsdomWithPlatformGlobals.cjs',
@@ -21,6 +22,7 @@ module.exports = {
     '^@document-intake/ui$': `${ui}/index.js`,
     '^@document-intake/api-client/testing$': `${apiClient}/testing/index.js`,
     '^@document-intake/api-client$': `${apiClient}/index.js`,
+    '^@document-intake/web$': `${web}/index.js`,
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json' }],

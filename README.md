@@ -1,11 +1,13 @@
 # document-intake
 
 A pnpm monorepo for a Power Apps Component Framework (PCF) control, the generated
-API client it talks to, the presentation library they share, and a web harness so
-UI work needs no Dataverse environment.
+API client it talks to, the presentation library they share, and the intake shell
+they both render — which doubles as a web harness, so UI work needs no Dataverse
+environment.
 
 ```
-apps/document-intake-web   Vite + React 18 SPA - dev harness / preview shell
+apps/document-intake-web   The intake shell: a Vite + React 18 SPA *and* the
+                           component the control renders
 pcf/documentintake         PCF control, built exclusively by pcf-scripts
 packages/api-client        Generated types, zod schemas, react-query hooks
 packages/ui                Presentation components + Tailwind styles only
@@ -15,10 +17,35 @@ packages/ui                Presentation components + Tailwind styles only
 
 ```
         ui ──────► api-client (types + generated hooks)
-        pcf ─────► ui + api-client
         web ─────► ui + api-client
+        pcf ─────► web ──► ui + api-client
         api-client ──► (nothing internal)
 ```
+
+### One shell, two hosts
+
+`apps/document-intake-web` is not only a harness. It has two entry points:
+
+| Entry | Built by | Consumed by |
+| --- | --- | --- |
+| `src/main.tsx` | Vite → `dist-app/` | the browser, against MSW |
+| `src/index.ts` | tsup → `dist/` | `pcf/documentintake`, bundled into the control |
+
+Both mount the same `<App>`. The control does not render a tree of its own —
+`index.ts` renders `App` from `@document-intake/web` and supplies what only a
+host can: the api config (routed through `ComponentFramework.WebApi` rather than
+the network), the QueryClient, the page size off the dataset binding, and the
+`onStateChange` callback that becomes `notifyOutputChanged`. Nothing about the
+host is assumed inside `App`; every such concern is a prop, down to the copy in
+the header, so the MSW strapline stays in `main.tsx` where it is true.
+
+The hazard this creates is MSW: `main.tsx` and the tests import `src/mocks/*`
+legitimately, and if the *library* entry ever reached them the mock service
+worker would ship inside the control and intercept the host's own requests. Two
+checks stand in the way — `src/purity.test.ts` walks the real import graph from
+`src/index.ts` and fails if it reaches `main.tsx`, `mocks/`, `msw`, or any bare
+specifier outside the control's dependency set; and `check-bundle.mjs` greps the
+shipped bundle for MSW's own runtime markers.
 
 `packages/ui` has no fetching logic of its own and declares no DTOs — every
 domain type is inferred from the generated zod schema. A test enforces this
@@ -33,6 +60,7 @@ domain type is inferred from the generated zod schema. A test enforces this
 | `pnpm lint` / `pnpm format:check` | Biome, repo-wide |
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm dev` | Web harness on :5173, backed by MSW |
+| `pnpm build:libs` | Builds just what the control consumes: api-client, ui, web |
 | `pnpm storybook` | Storybook on :6006 |
 | `pnpm --filter api-client generate` | Regenerates `src/generated/` from `openapi.json` |
 | `pnpm verify:generate` | Regenerates and fails if the working tree is dirty |
@@ -48,13 +76,19 @@ than documented and hoped for:
 | Constraint | Enforced by |
 | --- | --- |
 | Single bundle: no `import()`, `React.lazy`, code splitting, workers, top-level await | `scripts/check-bundle.mjs`, `packages/*/src/purity.test.ts`, webpack's `LimitChunkCountPlugin` |
-| No `process.env` / `import.meta.env` / Node built-ins in `ui` and `api-client` | `purity.test.ts` in both packages, Biome's `noNodejsModules` |
+| No `process.env` / `import.meta.env` / Node built-ins in `ui`, `api-client` and the `web` library entry | `purity.test.ts` in all three, Biome's `noNodejsModules` |
+| No MSW in the control bundle | `apps/document-intake-web/src/purity.test.ts` (import graph) + `check-bundle.mjs` (shipped bundle) |
 | No axios, no polyfills — native `fetch` or an injected fetcher | `check-bundle.mjs`, `verify-generated.mjs` |
 | Exactly one copy of `@tanstack/react-query` | `check-bundle.mjs` (bundle) + `check-single-react-query.mjs` (install) |
 | No side-effect CSS imports in library source | `purity.test.ts`; the stylesheet is a string, not an import |
-| ESM + `.d.ts`, `target: es2017`, `sideEffects: false` | `tsup.config.ts` in both packages |
+| ESM + `.d.ts`, `target: es2017`, `sideEffects: false` | `tsup.config.ts` in `ui`, `api-client` and `web` |
 | No global singletons — QueryClient, state and portals are per instance | `ApiProvider`, `createQueryClient()`, control lifecycle tests |
 | Portals mount in the control's container, never `document.body` | `UiRoot`'s portal host; asserted in `UiRoot.test.tsx` and `purity.test.ts` |
+
+The control's `build` script clears `out/` before running, because pcf-scripts
+exits 0 even when webpack fails to compile. Without that, a failed control build
+would leave the previous bundle behind for `check-bundle.mjs` to certify, and
+the whole pipeline would pass green on a control that does not compile.
 
 `pnpm build` runs the **production** PCF build, which is the artifact a solution
 ships. `check-bundle.mjs` refuses to certify a development build, because those
@@ -147,11 +181,13 @@ The locked set was checked against each other's peer ranges rather than assumed:
 | @storybook/react-vite | 10.5.9 | `vite: ^5 \|\| ^6 \|\| ^7 \|\| ^8` |
 | @vitejs/plugin-react | 6.0.5 | `vite: ^8` |
 
-Both library builds use **tsup**, not Vite library mode. `vite-plugin-dts` still
+All three library builds — `ui`, `api-client` and `web`'s `src/index.ts` — use
+**tsup**, not Vite library mode. `vite-plugin-dts` still
 declares a `rollup: ">=3"` peer, and Vite 8 bundles with Rolldown — exactly the
-plugin friction to avoid. Both builds need only ESM + `.d.ts`, so the simpler
-tool wins, and `target: 'es2017'` is set explicitly in both rather than left to
-Vite 7+'s `baseline-widely-available` default.
+plugin friction to avoid. They need only ESM + `.d.ts`, so the simpler tool
+wins, and `target: 'es2017'` is set explicitly in each rather than left to Vite
+7+'s `baseline-widely-available` default. Vite still builds the web app's SPA
+entry, into `dist-app/`, so the two outputs never collide.
 
 ## Testing
 
@@ -159,7 +195,7 @@ Vite 7+'s `baseline-widely-available` default.
 | --- | --- |
 | `packages/api-client` | Vitest + MSW, with handlers derived from `openapi.json` |
 | `packages/ui` | Vitest + Testing Library (+ Storybook, MSW addon) |
-| `apps/document-intake-web` | Vitest + Testing Library |
+| `apps/document-intake-web` | Vitest + Testing Library (+ an import-graph purity test) |
 | `pcf/documentintake` | Jest + ts-jest + jsdom, with a typed `ComponentFramework.Context` factory |
 
 The MSW route table is built from the spec, and `assertContractCoverage()` fails

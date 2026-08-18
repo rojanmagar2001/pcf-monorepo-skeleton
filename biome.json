@@ -10,6 +10,7 @@
       "**",
       "!**/node_modules",
       "!**/dist",
+      "!**/dist-app",
       "!**/out",
       "!**/obj",
       "!**/bin",
@@ -80,6 +81,8 @@
       "includes": [
         "packages/ui/src/**",
         "packages/api-client/src/**",
+        "apps/document-intake-web/src/**",
+        "!apps/document-intake-web/src/mocks/**",
         "!**/*.test.ts",
         "!**/*.test.tsx",
         "!**/*.stories.tsx"
