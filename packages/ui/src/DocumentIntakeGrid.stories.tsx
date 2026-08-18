@@ -1,11 +1,8 @@
-import {
-  createDocumentFixtures,
-  createDocumentIntakeMocks,
-} from '@document-intake/api-client/testing';
+import { createDocumentFixtures, DEFAULT_MOCK_BASE_URL } from '@document-intake/api-client/testing';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { HttpResponse, http } from 'msw';
+import type {} from 'msw-storybook-addon/types';
 import { useState } from 'react';
-import { STORYBOOK_BASE_URL } from '../.storybook/mocks';
 import {
   DocumentIntakeGrid,
   DocumentIntakeGridView,
@@ -92,15 +89,14 @@ export const LiveServerError: Story = {
     query: defaultDocumentIntakeQuery,
     onQueryChange: () => undefined,
   },
-  parameters: {
-    msw: {
-      handlers: [
-        http.get(`${STORYBOOK_BASE_URL}/documents`, () =>
-          HttpResponse.json({ title: 'Service unavailable', status: 503 }, { status: 503 }),
-        ),
-        ...createDocumentIntakeMocks({ baseUrl: STORYBOOK_BASE_URL }).handlers,
-      ],
-    },
+  // Shadows just the list endpoint; the preview's default handlers stay in
+  // place behind it.
+  beforeEach: ({ msw }) => {
+    msw.use(
+      http.get(`${DEFAULT_MOCK_BASE_URL}/documents`, () =>
+        HttpResponse.json({ title: 'Service unavailable', status: 503 }, { status: 503 }),
+      ),
+    );
   },
   render: () => <LiveGrid />,
 };

@@ -9,6 +9,7 @@ export { createDocumentFixtures } from './fixtures';
 export {
   assertContractCoverage,
   createDocumentIntakeMocks,
+  DEFAULT_MOCK_BASE_URL,
   type DocumentIntakeMocks,
   type HandlerOptions,
   implementedOperations,

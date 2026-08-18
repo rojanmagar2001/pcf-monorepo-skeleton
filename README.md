@@ -61,7 +61,8 @@ domain type is inferred from the generated zod schema. A test enforces this
 | `pnpm typecheck` | `tsc --noEmit` per package |
 | `pnpm dev` | Web harness on :5173, backed by MSW |
 | `pnpm build:libs` | Builds just what the control consumes: api-client, ui, web |
-| `pnpm storybook` | Storybook on :6006 |
+| `pnpm storybook` | Storybook on :6006, rendering `ui` + `web` stories |
+| `pnpm build:storybook` | Static Storybook into `apps/storybook/storybook-static/` |
 | `pnpm --filter api-client generate` | Regenerates `src/generated/` from `openapi.json` |
 | `pnpm verify:generate` | Regenerates and fails if the working tree is dirty |
 
@@ -133,7 +134,9 @@ the control passes `createWebApiFetch(context)`, which routes through
 ## Tailwind
 
 One config, `packages/ui/tailwind.config.ts`, consumed by the library build, the
-web app and Storybook. There is no second config file.
+web app and Storybook. There is no second config file — `apps/document-intake-web`
+and `apps/storybook` each have a `postcss.config.cjs` that `require.resolve`s
+this one.
 
 ```ts
 corePlugins: { preflight: false }  // preflight would reset the host app
@@ -189,14 +192,68 @@ wins, and `target: 'es2017'` is set explicitly in each rather than left to Vite
 7+'s `baseline-widely-available` default. Vite still builds the web app's SPA
 entry, into `dist-app/`, so the two outputs never collide.
 
+## Storybook
+
+`apps/storybook` is the workspace's single Storybook, and it deliberately owns
+no components. Stories stay next to the code they document — `packages/ui` for
+the presentational library, `apps/document-intake-web` for the shell — and the
+app only collects them:
+
+```ts
+stories: [
+  '../../../packages/ui/src/**/*.stories.@(ts|tsx)',
+  '../../../apps/document-intake-web/src/**/*.stories.@(ts|tsx)',
+]
+```
+
+Two things in `.storybook/main.ts` earn their keep:
+
+- **Workspace packages resolve to `src/`, not `dist/`.** A story imports its
+  subject by relative path, so without the aliases a story's `./UiRoot` and the
+  preview decorator's `@document-intake/ui` would be two different modules —
+  same component, two React contexts, and `useUiPortalContainer()` quietly
+  returning `null`. It also means `pnpm storybook` needs no library build first.
+- **`server.fs.allow` is set to the repo root**, because every story lives
+  outside this app's own directory.
+
+The preview mounts each story the way the host does: a resizable, fixed-size box
+standing in for a PCF field slot, inside `UiRoot`, under a fresh `QueryClient`
+that is disposed on unmount — the same lifecycle the control gives each
+instance. A story whose subject mounts its own `UiRoot` (the shell does) opts
+out with `parameters: { uiRoot: false }`.
+
+### MSW
+
+Handlers come from `createDocumentIntakeMocks()` in
+`@document-intake/api-client/testing` — the same spec-derived mock backend the
+tests and the web harness use, pointed at `DEFAULT_MOCK_BASE_URL`.
+
+> As of `msw-storybook-addon` 3, `parameters.msw` is read **only** by the legacy
+> `msw-storybook-addon/csf3` loader. `addonMsw()` starts a handler-less worker,
+> exposes it as `context.msw`, and resets it after every story. So the default
+> backend is installed in the preview's `beforeEach`, and a story that needs
+> different behaviour adds its own:
+
+```ts
+export const LiveServerError: Story = {
+  beforeEach: ({ msw }) => {
+    msw.use(http.get(`${DEFAULT_MOCK_BASE_URL}/documents`, () => /* 503 */));
+  },
+};
+```
+
+Story annotations run after the preview's and `msw.use()` prepends, so a story's
+handler shadows the default without restating the rest.
+
 ## Testing
 
 | Package | Runner |
 | --- | --- |
 | `packages/api-client` | Vitest + MSW, with handlers derived from `openapi.json` |
-| `packages/ui` | Vitest + Testing Library (+ Storybook, MSW addon) |
+| `packages/ui` | Vitest + Testing Library |
 | `apps/document-intake-web` | Vitest + Testing Library (+ an import-graph purity test) |
 | `pcf/documentintake` | Jest + ts-jest + jsdom, with a typed `ComponentFramework.Context` factory |
+| `apps/storybook` | Not a test runner — see [Storybook](#storybook) below |
 
 The MSW route table is built from the spec, and `assertContractCoverage()` fails
 the suite if `openapi.json` grows an operation with no handler behind it.

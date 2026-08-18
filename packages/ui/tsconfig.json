@@ -6,5 +6,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["src", "tailwind.config.ts", "tsup.config.ts", "vitest.config.ts", ".storybook"]
+  "include": ["src", "tailwind.config.ts", "tsup.config.ts", "vitest.config.ts"]
 }
